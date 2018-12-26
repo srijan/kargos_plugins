@@ -13,42 +13,35 @@ import sys
 import os
 if sys.version_info[0] < 3:
     from urllib2 import urlopen, Request
-    from urllib import urlencode
+    from urllib import quote_plus
 else:
     from urllib.request import urlopen, Request
-    from urllib.parse import urlencode
+    from urllib.parse import quote_plus
 import json
 import datetime
 
 api_key = os.environ.get('TODOIST_API_KEY')
 
+d = datetime.datetime.today()
+today = str(d.day)+d.strftime(" %b")
+filter = quote_plus(today + " | today | overdue")
+
+url = 'https://beta.todoist.com/API/v8/tasks?filter=' + filter
+
 if not api_key:
     print("Tasks: ☠")
     print("---")
     print("Please set TODOIST_API_KEY environment variable")
-
 else:
-    url = 'https://todoist.com/API/v7/sync'
-    value = { 'token': api_key, 'resource_types': '["items"]', 'seq_no': 0 }
-    data = urlencode(value).encode('utf-8')
-
-    d = datetime.datetime.today()
-    today = str(d.day)+d.strftime(" %b")
-    today_y = str(d.day)+d.strftime(" %b ")+str(d.year)
-
+    auth_header = "Bearer " + api_key
     try:
-        request = Request(url, data)
+        request = Request(url)
+        request.add_header('Authorization', auth_header)
         r = urlopen(request)
-        j = json.loads(r.read())
-        items = j['items']
-        today_items = []
-        for item in items:
-            due = item['date_string'] # due date of a task
-            if (due == today) or (due == today_y):
-                today_items.append(item)
-        print("Tasks: %d" % len(today_items))
+        items = json.loads(r.read())
+        print("Tasks: %d" % len(items))
         print("---")
-        for item in today_items:
+        for item in items:
             print("⬜ " + item['content'])
     finally:
         r.close()
